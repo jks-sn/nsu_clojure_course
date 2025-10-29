@@ -9,15 +9,16 @@
     (my-map #(str string %)
             (my-filter #(not= last_character (first %)) symbols))))
 
-(defn- expand-step [acc syms]
-  (mapcat #(expand-one % syms) acc))
+(defn- expand-step [acc symbols]
+  (reduce concat
+          (my-map #(expand-one % symbols) acc)))
 
 (defn all-strings
   [symbols len]
   (cond
     (neg? len) (throw (ex-info "n must be non-negative" {:n len}))
     (zero? len) (list "")
-    (empty? symbols) '()
+    (empty? symbols) []
     :else
     (let [symbols (my-map str symbols)]
       (if (= len 1)
@@ -27,3 +28,5 @@
 (defn -main []
   (doseq [s (all-strings [\a \b \c] 3)]
     (println s)))
+
+;; my-map, iterate

@@ -38,14 +38,14 @@
   [symbols len]
   (cond
     (neg? len) (throw (ex-info "n must be non-negative" {:len len}))
-    (= len 0)  [""]
-    (= len 1)  (symbol_to_str symbols)
+    (= len 0) [""]
+    (= len 1) (symbol_to_str symbols)
     :else
-    (letfn [(build [k strings]
+    (letfn [(build_strings [k strings]
               (if (= k len)
                 strings
                 (recur (inc k) (step-tail symbols strings))))]
-      (build 1 (symbol_to_str symbols)))))
+      (build_strings 1 (symbol_to_str symbols)))))
 
 
 (defn -main []
