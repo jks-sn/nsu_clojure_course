@@ -1,43 +1,42 @@
 (ns core-3-1)
 
-(defn heavy-even? [x]
-  (Thread/sleep 10)                                         ;; имитация I/O/латентности
+(defn heavy-even?
+  [x]
+  (Thread/sleep 5)
   (even? x))
 
-(defn split-seq
-  [coll chunk-sizes]
-  (lazy-seq
-    (when (and (seq coll) (seq chunk-sizes))
-      (let [n (first chunk-sizes)
-            [h t] (split-at n coll)]
-        (cons h (split-seq t (rest chunk-sizes)))))))
+(defn chunk-by-size
+  [block-size coll]
+  (when (<= block-size 0)
+    (throw (ex-info "block-size must be positive" {:block-size block-size})))
+  (when (seq coll)
+    (let [block (take block-size coll)
+          rest-elements (drop block-size coll)]
+      (cons block (chunk-by-size block-size rest-elements)))))
 
-(defn partition-by-count
-  [chunk-count collection]
-  (when (<= chunk-count 0)
-    (throw (ex-info "chunk-count must be positive" {:chunk-count chunk-count})))
-  (let [collection-size (count collection)
-        chunk-size (quot collection-size chunk-count)
-        remainder (rem collection-size chunk-count)
-        sizes (concat (repeat remainder (inc chunk-size))
-                      (repeat (- chunk-count remainder) chunk-size))]
-    (take chunk-count (split-seq collection sizes))))
-
-(defn parallel-filter
-  [pred n coll]
-  (->> (partition-by-count n coll)
-       (mapv #(future (doall (filter pred %))))
-       (mapcat deref)
-       (doall)))
+(defn parallel-filter-blocksize
+  [pred block-size coll]
+  (->> (chunk-by-size block-size coll)
+       (mapv (fn [block]
+               (future
+                 (let [tname (.getName (Thread/currentThread))]
+                   (println tname))
+                 (doall (filter pred block)))))
+       (mapcat deref)))
 
 (defn -main
   [& _]
   (try
-    (let [coll (vec (range 500))
-          n 3]
-      (println "Standart filter:")
-      (time (println "count =" (count (doall (filter heavy-even? coll)))))
-      (println "Parallel filter:")
-      (time (println "count =" (count (parallel-filter heavy-even? n coll)))))
+    (let [data (vec (range 1000))
+          block-size 10]
+      (println "Data size:" (count data) ", block size:" block-size)
+
+      (time
+        (println "seq  filter count ="
+                 (count (doall (filter heavy-even? data)))))
+
+      (time
+        (println "para filter count ="
+                 (count (parallel-filter-blocksize heavy-even? block-size data)))))
     (finally
       (shutdown-agents))))
